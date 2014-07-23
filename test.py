@@ -49,12 +49,10 @@ def add_tag(instance, tag={ "Parent":"My Python Script!" }):
 		print "Could not add tag. Status: %s" % status
 		return None
 
-
 # Terminate a server with given id
 def kill_server(instance_id):
 	# Connect to AWS
 	conn = boto.ec2.connect_to_region("us-east-1")
-
 
 	# Find given instance
 	instance_found = False
@@ -99,3 +97,6 @@ def main(argv):
 
 if __name__=="__main__":
 	main(sys.argv[1:])
+
+
+# Adding line to see if git pull on server worked
