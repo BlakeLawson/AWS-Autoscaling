@@ -28,7 +28,8 @@ def new_server():
 	# Add a tag to the instance
 	print "Adding a tag"
 	for inst in reservation.instances:
-		add_tag(inst)
+		tag = { "Type":"Child", "Parent":"My Python Script!" }
+		add_tag(inst, tag)
 
 	print "Set up complete." 
 	for inst in reservation.instances:
@@ -82,6 +83,24 @@ def send_message(message=""):
 	print "Sent message '%s'" % message
 	s.close()
 
+# Send request for status check an get response
+def health_check():
+	# Configure connection
+	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	s.connect(("localhost", 9989))
+	print "Connected to %s" % str(s.getsockname())
+
+	message = "real status"
+	s.sendall(message)
+	print "Message sent"
+
+	print "Waiting for response"
+	# conn, addr = s.accept()
+	data = s.recv(2048)
+	s.close()
+
+	print "Recieved message: %s" % str(data)
+
 # Manage command line input
 def main(argv):
 	# # Set up parser
@@ -111,6 +130,9 @@ def main(argv):
 				send_message(argv[1])
 			else:
 				print "Specify message to send."
+
+		elif argv[0] == "status":
+			health_check()
 
 	else:
 		print "Invalid arguments."
