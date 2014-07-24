@@ -97,6 +97,4 @@ def main(argv):
 
 if __name__=="__main__":
 	main(sys.argv[1:])
-
-# Adding another line
-# Adding line to see if git pull on server worked
+	
