@@ -4,6 +4,7 @@
 import argparse
 import boto
 import boto.ec2
+import socket
 import sys
 import time
 
@@ -18,7 +19,7 @@ def new_server():
 	# Initialize the new server
 	print "Making a new instance"
 	reservation = conn.run_instances(
-				image_id="ami-6030f908", 
+				image_id="ami-38b27a50", 
 				instance_type="t2.micro",
 				key_name="blake",
 				security_groups=["launch-wizard-1"]
@@ -38,7 +39,7 @@ def add_tag(instance, tag={ "Parent":"My Python Script!" }):
 	# Make sure instanc is actually running
 	status = instance.update()
 	while status == "pending":
-		time.sleep(10)
+		time.sleep(100)
 		status = instance.update()
 
 	if status == "running":
@@ -70,6 +71,17 @@ def kill_server(instance_id):
 	else:
 		print "Instance not found"
 
+# Send message to listener
+# TODO: Add ability to specify address to send to. Maybe make into a class
+def send_message(message=""):
+	# Configure connection
+	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	s.connect(("localhost", 9989))
+	print "Connecting to localhost:9989"
+	s.sendall(message)
+	print "Sent message '%s'" % message
+	s.close()
+
 # Manage command line input
 def main(argv):
 	# # Set up parser
@@ -87,14 +99,21 @@ def main(argv):
 	if argv:
 		if argv[0] == "add":
 			new_server()
+
 		elif argv[0] == "del":
 			if argv[1]:
 				kill_server(argv[1])
 			else:
 				print "Specify server to delete."
+
+		elif argv[0] == "send":
+			if argv[1]:
+				send_message(argv[1])
+			else:
+				print "Specify message to send."
+
 	else:
 		print "Invalid arguments."
 
 if __name__=="__main__":
 	main(sys.argv[1:])
-	
