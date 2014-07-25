@@ -15,7 +15,9 @@ import time
 
 '''
 This class is meant to handle all interactions between the monitoring
-server (the server running this script) and all other AWS workers.
+server (the server running this script) and all other AWS workers. In
+retrospect, it probably should have been divided into several, smaller
+classes and methods
 '''
 class Controller:
 	# Dictionary containing lists of aws instance objects for all worker made by
@@ -134,8 +136,8 @@ class Controller:
 		children = self.get_children(parent_inst)
 		
 		for child in children:
-			if child in self.auto_instances['running'].values()
-			worker = child
+			if child in self.auto_instances['running'].values():
+				worker = child
 			break
 
 		if worker:
@@ -328,37 +330,25 @@ def monitor(controller):
 					controller.force_terminate(inst)
 					controller.auto_instances['ending'].remove(inst)
 
-'''
-#######################
-### MAKE A NEW MAIN ###
-#######################
-'''
-
-
 # Manage command line input
-# TODO: set up argparse
 def main(argv):
+	# Set up parser
+	parser = argparse.ArgumentParser()
+	parser.add_argument('option', help='monitor AWS instances (use option \'run\' to start monitoring)')
+	parser.add_argument('-i', '--ami', help='AWS AMI to use when making new workers', default='ami-38b27a50')
+	parser.add_argument('-k', '--key', help='name of the AWS key pair to use. You will need the corresponding .pem key to ssh into the new workers.', default='blake')
+	parser.add_argument('-s', '--security', help='group name of the AWS security group to use for the new instances', default='launch-wizard-1')
+	parser.add_argument('-t', '--instance_type', help='The type of AWS instance to use (e.g. "t2.micro")', default='t2.micro')
+	parser.add_argument('-v', '--verbose', help='output what is going on.', action='store_true')
+
 	# Read command-line input
-	if argv:
-		if argv[0] == "add":
-			new_server()
+	args = parser.parse_args(argv)
 
-		elif argv[0] == "del":
-			if argv[1]:
-				kill_server(argv[1])
-			else:
-				print "Specify server to delete."
-
-		elif argv[0] == "send":
-			if argv[1]:
-				send_message(argv[1])
-			else:
-				print "Specify message to send."
-
+	if args.option == 'run':
+		c = Controller(verbose=args.verbose, ami=args.ami, instance_type=args.instance_type, key_name=args.key, security_groups=[args.security])
+		monitor(c)
 	else:
-		print "Invalid arguments."
-
+		print "Invalid arguments"
 
 if __name__=="__main__":
 	main(sys.argv[1:])
-
