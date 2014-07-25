@@ -1,5 +1,9 @@
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-' Script to listen for messages on a specific port
+' Script to listen for messages on a specific port. Messages should
+' take the format "password command additional_arguments". The Listener
+' should always respond in the format 
+' "request_confirmation additional_arguments" (NOTE: the listener
+' response still needs to be properly implemented)
 ' 
 ' ctr+f for "TODO"
 '
@@ -86,7 +90,7 @@ class Listener:
 					if self.verbose:
 						print "Closed connection"
 				else:
-					pass
+					print "Recieved message: " + data
 
 	# Check authentication key to sender
 	# TODO: Make this legitimate
@@ -113,6 +117,11 @@ class Listener:
 		mem = psutil.virtual_memory().percent
 
 		return (CPU, disk, mem)
+
+
+'''
+NEED TO MAKE NEW main
+'''
 
 # Manage command line input
 # TODO: set up argparse
