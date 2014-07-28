@@ -7,8 +7,8 @@
 ' Dependencies: boto
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 import argparse
-import boto
 import boto.ec2
+import logging
 import socket
 import sys
 import time
@@ -353,12 +353,11 @@ def monitor(controller):
 def main(argv):
 	# Set up parser
 	parser = argparse.ArgumentParser()
-	parser.add_argument('option', help='monitor AWS instances (use option \'run\' to start monitoring)')
 	parser.add_argument('-i', '--ami', help='AWS AMI to use when making new workers', default='ami-38b27a50')
-	parser.add_argument('-k', '--key', help='name of the AWS key pair to use. You will need the corresponding .pem key to ssh into the new workers.', default='blake')
+	parser.add_argument('-k', '--key', help='name of the AWS key pair to use. You will need the corresponding .pem key to ssh into the new workers', default='blake')
 	parser.add_argument('-s', '--security', help='group name of the AWS security group to use for the new instances', default='launch-wizard-1')
 	parser.add_argument('-t', '--instance_type', help='The type of AWS instance to use (e.g. "t2.micro")', default='t2.micro')
-	parser.add_argument('-v', '--verbose', help='output what is going on.', action='store_true')
+	parser.add_argument('-v', '--verbose', help='output what is going on', action='store_true')
 
 	'''
 	TODO: Rather than using hard coded default options for the parser, it would be 
@@ -376,11 +375,8 @@ def main(argv):
 	# Read command-line input
 	args = parser.parse_args(argv)
 
-	if args.option == 'run':
-		c = Controller(verbose=args.verbose, ami=args.ami, instance_type=args.instance_type, key_name=args.key, security_groups=[args.security])
-		monitor(c)
-	else:
-		print "Invalid arguments"
+	c = Controller(verbose=args.verbose, ami=args.ami, instance_type=args.instance_type, key_name=args.key, security_groups=[args.security])
+	monitor(c)
 
 if __name__=="__main__":
 	main(sys.argv[1:])
