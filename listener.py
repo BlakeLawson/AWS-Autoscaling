@@ -45,6 +45,12 @@ class Listener:
 	}
 
 	def __init__(self, address=socket.gethostname(), port=9989, verbose=False):
+		'''
+		If you change the port, make sure you change the AWS security group to
+		allow TCP access on that port.
+		'''
+
+		# Initialize member variables
 		self.verbose = verbose
 
 		# Set up socket

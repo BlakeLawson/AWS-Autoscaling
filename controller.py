@@ -44,7 +44,9 @@ class Controller:
 	}
 
 	# Port to use when connecting to workers. MAKE SURE IT IS THE SAME
-	# AS THE PORT BEING USED IN Listener CLASS IN listener.py!!!!
+	# AS THE PORT BEING USED IN Listener CLASS IN listener.py!!!! Also,
+	# if you change this port, make sure that you change the AWS
+	# security group to allow TCP access on the new port.
 	SOCKET_PORT = 9989
 
 	def __init__(self, verbose=False, ami="ami-38b27a50", instance_type="t2.micro", key_name="blake", security_groups=["launch-wizard-1"]):
@@ -234,6 +236,7 @@ def monitor(controller):
 	# Get all existing AWS instances
 	controller.update()
 
+	counter = 0
 	# Main loop
 	while True:
 		# Check on workers that were previously booting up
@@ -273,6 +276,10 @@ def monitor(controller):
 			CPU = data[0]
 			disk = data[1]
 			mem = data[2]
+
+			# DELETE ME
+			if counter % 5 == 0:
+				print "%s CPU:\t%s" % (inst.ip_address, CPU + "%")
 
 			conn.close()
 
@@ -348,6 +355,8 @@ def monitor(controller):
 				if time_difference_minutes > 5 * 60:
 					controller.force_terminate(inst)
 					controller.auto_instances['ending'].remove(inst)
+
+		counter += 1
 
 # Manage command line input
 def main(argv):
