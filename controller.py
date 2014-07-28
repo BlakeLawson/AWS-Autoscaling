@@ -49,7 +49,7 @@ class Controller:
 	# security group to allow TCP access on the new portself.
 	SOCKET_PORT = 9989
 
-	def __init__(self, verbose=False, ami="ami-38b27a50", instance_type="t2.micro", key_name="blake", security_groups=["launch-wizard-1"]):
+	def __init__(self, verbose=False, ami="ami-4e19d326", instance_type="t2.micro", key_name="blake", security_groups=["launch-wizard-1"]):
 		'''
 		Initialize member variables
 		'''
@@ -202,20 +202,20 @@ class Controller:
 		for res in reserves:
 			for inst in res.instances:
 				# Case: Running base instance
-				if inst.tags['Type'] == "Base" and inst not in self.base_instances:
+				if inst.tags['Type'] == "Base" and not any(inst.id == i.id for i in self.base_instances):
 					if not inst.update() == "terminated":
 						self.base_instances.append(inst)
 				# Case: Auto instance
 				elif inst.tags['Type'] == "Child":
 					state = inst.update()
 					# Case: Starting auto instance
-					if state == "pending" and inst not in self.auto_instances['starting']:
+					if state == "pending" and not any(inst.id == i.id for i in self.auto_instances['starting']):
 						self.auto_instances['starting'].append(inst)
 					# Case: Running auto instance
-					elif state == "running" and inst not in self.auto_instances['running']:
+					elif state == "running" and not any(inst.id == i.id for i in self.auto_instances['running']):
 						self.auto_instances['running'].append(inst)
 					# Case: Ending auto instance
-					elif not state == "terminated" and inst not in self.auto_instances['ending']:
+					elif not state == "terminated" and not any(inst.id == i.id for i in self.auto_instances['ending']):
 						self.auto_instances['ending'].append(inst)
 					# Case: Terminated auto_instance
 					else:
@@ -242,7 +242,6 @@ def monitor(controller):
 	# Get all existing AWS instances
 	controller.update()
 
-	counter = 0
 	# Main loop
 	while True:
 		# Check on workers that were previously booting up
@@ -273,7 +272,7 @@ def monitor(controller):
 				print "Strange InstanceState for %s" % inst
 
 		# Check on base instances
-		if controller.verbose:
+		if controller.verbose and controller.base_instances:
 			print "monitor(): Checking base instances"
 		for inst in controller.base_instances:
 			# Connect to instance
@@ -285,37 +284,43 @@ def monitor(controller):
 				# Get the instance's response
 				# TODO: Add check for 'OK' from Listener
 				data = conn.recv(2048).split()
-				CPU = data[0]
-				disk = data[1]
-				mem = data[2]
 
-				# DELETE ME
-				if counter % 5 == 0:
-					print "%s CPU:\t%s" % (inst.ip_address, CPU + "%")
+				print data
+
+				if data[0] == "1":
+					CPU = float(data[1])
+					disk = float(data[2])
+					mem = float(data[3])
+
+					if controller.verbose:
+						print "%s: CPU=%s\tDisk Usage=%s\tMemory Usage=%s" % (inst.id, str(CPU) + "%", str(disk) + "%", str(mem) + "%")
+
+					########################################
+					### Condiditions for new worker here ###
+					########################################
+					'''
+					TODO: Make conditions for creating/removing new workers
+
+					It might be good to make some kind of data structure to keep
+					track of past values for each primary worker. Basically
+					something that either averages past values or something that
+					keeps a tally of number of times a condition is > 85%.
+					'''
+					# Condition for making a new instance
+					if False:  
+						controller.add_worker(inst)
+						if controller.verbose:
+							print "Added worker to help %s" % inst
+					# Conditions for killing an existing instance
+					elif False:
+						controller.remove_worker(inst)
+						if controller.verbose:
+							print "Killing worker for %s" % inst
+				else:
+					# Something went wrong with message
+					pass
 
 				conn.close()
-
-				########################################
-				### Condiditions for new worker here ###
-				########################################
-				'''
-				TODO: Make conditions for creating/removing new workers
-
-				It might be good to make some kind of data structure to keep
-				track of past values for each primary worker. Basically
-				something that either averages past values or something that
-				keeps a tally of number of times a condition is > 85%.
-				'''
-				# Condition for making a new instance
-				if False:  
-					controller.add_worker(inst)
-					if controller.verbose:
-						print "Added worker to help %s" % inst
-				# Conditions for killing an existing instance
-				elif False:
-					controller.remove_worker(inst)
-					if controller.verbose:
-						print "Killing worker for %s" % inst
 			else:
 				# Could not connect to instance
 				continue
@@ -328,7 +333,7 @@ def monitor(controller):
 		needed. Probably won't be able to do this effectively until testing with
 		the actual workers.
 		'''
-		if controller.verbose:
+		if controller.verbose and controller.auto_instances['running']:
 			print "monitor(): Checking auto instances"
 		for inst in controller.auto_instances['running']:
 			# Connect to instance
@@ -340,10 +345,13 @@ def monitor(controller):
 				# Get the instance's response
 				# TODO: Add check for 'OK' from Listener
 				data = conn.recv(2048).split()
-				CPU = data[0]
-				disk = data[1]
-				mem = data[2]
-
+				if data[0] == "1":
+					CPU = float(data[1])
+					disk = float(data[2])
+					mem = float(data[3])
+				else:
+					# Something went wrong with the message
+					pass
 				conn.close()
 			else:
 				# Could not connect to instance
@@ -375,13 +383,11 @@ def monitor(controller):
 					controller.force_terminate(inst)
 					controller.auto_instances['ending'].remove(inst)
 
-		counter += 1
-
 # Manage command line input
 def main(argv):
 	# Set up parser
 	parser = argparse.ArgumentParser()
-	parser.add_argument('-i', '--ami', help='AWS AMI to use when making new workers', default='ami-38b27a50')
+	parser.add_argument('-i', '--ami', help='AWS AMI to use when making new workers', default='ami-4e19d326')
 	parser.add_argument('-k', '--key', help='name of the AWS key pair to use. You will need the corresponding .pem key to ssh into the new workers', default='blake')
 	parser.add_argument('-s', '--security', help='group name of the AWS security group to use for the new instances', default='launch-wizard-1')
 	parser.add_argument('-t', '--instance_type', help='The type of AWS instance to use (e.g. "t2.micro")', default='t2.micro')
