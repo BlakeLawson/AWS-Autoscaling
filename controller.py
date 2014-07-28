@@ -46,7 +46,7 @@ class Controller:
 	# Port to use when connecting to workers. MAKE SURE IT IS THE SAME
 	# AS THE PORT BEING USED IN Listener CLASS IN listener.py!!!! Also,
 	# if you change this port, make sure that you change the AWS
-	# security group to allow TCP access on the new port.
+	# security group to allow TCP access on the new portself.
 	SOCKET_PORT = 9989
 
 	def __init__(self, verbose=False, ami="ami-38b27a50", instance_type="t2.micro", key_name="blake", security_groups=["launch-wizard-1"]):
@@ -183,12 +183,18 @@ class Controller:
 		#       to parse the parent tasks and make them into real
 		#       commands (this should probably be done in Listener)
 		conn = self.connect_to_inst(inst)
-		message = self.MESSAGE['run'] + tasks
-		conn.sendall(message)
-		# For now, the auto instance is just going to return the message it recieves
-		data = conn.recv(2048)
-		print "Message recieved from %s: %s" % (inst.id, data)
-		conn.close()
+		if conn:
+			message = self.MESSAGE['run'] + tasks
+			conn.sendall(message)
+			# For now, the auto instance is just going to return the message it recieves
+			# TODO: Confirm message recipt here
+			data = conn.recv(2048)
+			print "Message recieved from %s: %s" % (inst.id, data)
+			conn.close()
+			return True
+		else:
+			# Could not connect to instance
+			return False
 
 	# Update list of known instances
 	def update(self):
@@ -245,14 +251,19 @@ def monitor(controller):
 		for inst in controller.auto_instances['starting']:
 			status = inst.update()
 			if status == 'running':
-				if controller.verbose:
-					print "%s finished booting" % inst
-				controller.auto_instances['running'].append(inst)
-				controller.auto_instances['starting'].remove(inst)
 				####################################################
 				### Call function to start running tasks/scripts ###
 				####################################################
-				controller.start_up(inst)
+				if controller.start_up(inst):
+					if controller.verbose:
+						print "%s finished booting" % inst
+					controller.auto_instances['running'].append(inst)
+					controller.auto_instances['starting'].remove(inst)
+				else:
+					# Could not connect to instance. It must not have started
+					# listening yet
+					continue
+
 			elif status == 'pending':
 				# The instance is still starting up
 				pass
@@ -267,43 +278,47 @@ def monitor(controller):
 		for inst in controller.base_instances:
 			# Connect to instance
 			conn = controller.connect_to_inst(inst)
-			message = controller.MESSAGE["status"]
-			conn.sendall(message)
-		
-			# Get the instance's response
-			# TODO: Add check for 'OK' from Listener
-			data = conn.recv(2048).split()
-			CPU = data[0]
-			disk = data[1]
-			mem = data[2]
+			if conn:
+				message = controller.MESSAGE["status"]
+				conn.sendall(message)
+			
+				# Get the instance's response
+				# TODO: Add check for 'OK' from Listener
+				data = conn.recv(2048).split()
+				CPU = data[0]
+				disk = data[1]
+				mem = data[2]
 
-			# DELETE ME
-			if counter % 5 == 0:
-				print "%s CPU:\t%s" % (inst.ip_address, CPU + "%")
+				# DELETE ME
+				if counter % 5 == 0:
+					print "%s CPU:\t%s" % (inst.ip_address, CPU + "%")
 
-			conn.close()
+				conn.close()
 
-			########################################
-			### Condiditions for new worker here ###
-			########################################
-			'''
-			TODO: Make conditions for creating/removing new workers
+				########################################
+				### Condiditions for new worker here ###
+				########################################
+				'''
+				TODO: Make conditions for creating/removing new workers
 
-			It might be good to make some kind of data structure to keep
-			track of past values for each primary worker. Basically
-			something that either averages past values or something that
-			keeps a tally of number of times a condition is > 85%.
-			'''
-			# Condition for making a new instance
-			if False:  
-				controller.add_worker(inst)
-				if controller.verbose:
-					print "Added worker to help %s" % inst
-			# Conditions for killing an existing instance
-			elif False:
-				controller.remove_worker(inst)
-				if controller.verbose:
-					print "Killing worker for %s" % inst
+				It might be good to make some kind of data structure to keep
+				track of past values for each primary worker. Basically
+				something that either averages past values or something that
+				keeps a tally of number of times a condition is > 85%.
+				'''
+				# Condition for making a new instance
+				if False:  
+					controller.add_worker(inst)
+					if controller.verbose:
+						print "Added worker to help %s" % inst
+				# Conditions for killing an existing instance
+				elif False:
+					controller.remove_worker(inst)
+					if controller.verbose:
+						print "Killing worker for %s" % inst
+			else:
+				# Could not connect to instance
+				continue
 
 		# Check on running auto instances
 		'''
@@ -318,17 +333,21 @@ def monitor(controller):
 		for inst in controller.auto_instances['running']:
 			# Connect to instance
 			conn = controller.connect_to_inst(inst)
-			message = controller.MESSAGE["status"]
-			conn.sendall(message)
+			if conn:
+				message = controller.MESSAGE["status"]
+				conn.sendall(message)
 
-			# Get the instance's response
-			# TODO: Add check for 'OK' from Listener
-			data = conn.recv(2048).split()
-			CPU = data[0]
-			disk = data[1]
-			mem = data[2]
+				# Get the instance's response
+				# TODO: Add check for 'OK' from Listener
+				data = conn.recv(2048).split()
+				CPU = data[0]
+				disk = data[1]
+				mem = data[2]
 
-			conn.close()
+				conn.close()
+			else:
+				# Could not connect to instance
+				continue
 
 		# Check on instances that are shutting down
 		if controller.verbose and controller.auto_instances['ending']:
