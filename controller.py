@@ -26,7 +26,7 @@ class Controller:
 
 	# List of all primary instances that serve as parents to auto
 	# instances.
-	base_instances = [] 
+	parent_instances = [] 
 
 	# Authentication key that the Listener looks for
 	LISTENER_PASSWORD = 'real'
@@ -92,6 +92,7 @@ class Controller:
 		address = inst.public_dns_name
 		port = self.SOCKET_PORT
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.settimeout(5.0)
 		try:
 			if self.verbose:
 				print "Connecting to %s" % inst
@@ -122,7 +123,7 @@ class Controller:
 		children = []
 		for group in self.auto_instances:
 			for i in self.auto_instances[group]:
-				if str(inst) in i.tags.values():
+				if inst.id in i.tags.values():
 					children.append(i)
 
 		return children
@@ -133,17 +134,22 @@ class Controller:
 		
 		# Select the first child in the list of children for the given parent
 		# TODO: Use a more rigorous technique for selecting the worker to kill
+		worker = None
 		for child in children:
-			if child in self.auto_instances['running'].values():
+			if child in self.auto_instances['running']:
 				worker = child
 			break
 
 		if worker:
 			# Connect to worker
 			conn = self.connect_to_inst(worker)
-			conn.sendall(self.MESSAGE['kill'])
-			# TODO: Add line here to confirm that worker got message
-			conn.close()
+			if conn:
+				conn.sendall(self.MESSAGE['kill'])
+				# TODO: Add line here to confirm that worker got message
+				conn.close()
+			else:
+				# Could not connect to worker
+				pass
 
 			# Update lists
 			self.auto_instances['running'].remove(worker)
@@ -161,22 +167,17 @@ class Controller:
 		# Add a tag
 		# It should be noted that 'inst' is an AWS Instance object, and 'parent' is an attribute that
 		# this script should have added to the Instance when it was first created.
-		if inst.parent:
-			tag = { "Type":"Child", "Parent":inst.parent.id }
-		else:
+		try:
+			tag = { "Name":"Auto Instance", "Type":"Child", "Parent":inst.parent.id }
+			# Get processes for this instance to run
+			tasks = inst.parent.tags['Tasks']
+		except AttributeError:
 			# TODO: I'm not actually sure about what should be done in this case. For now I'm going
-			# to give the instance an alternate tag, but in the future it might make sense to 
-			# terminate the instance because it won't be possible to determine which tasks to run.
-			tag = { "Type":"Child", "Parent":"Unknown" }
+			# to do nothing, but in the future it might make sense to terminate the instance because
+			# it won't be possible to determine which tasks to run.
+			return None
 		
 		inst.add_tags(tag)
-
-		# Get processes for this instance to run
-		try:
-			tasks = inst.parent.tags['Tasks']
-		except:
-			# Parent must not exist
-			return None
 
 		# Connect to instance and send it tasks to run
 		# TODO: Actually do something here. Maybe make a method
@@ -201,29 +202,32 @@ class Controller:
 		reserves = self.aws_conn.get_all_reservations()
 		for res in reserves:
 			for inst in res.instances:
-				# Case: Running base instance
-				if inst.tags['Type'] == "Base" and not any(inst.id == i.id for i in self.base_instances):
-					if not inst.update() == "terminated":
-						self.base_instances.append(inst)
-				# Case: Auto instance
-				elif inst.tags['Type'] == "Child":
-					state = inst.update()
-					# Case: Starting auto instance
-					if state == "pending" and not any(inst.id == i.id for i in self.auto_instances['starting']):
-						self.auto_instances['starting'].append(inst)
-					# Case: Running auto instance
-					elif state == "running" and not any(inst.id == i.id for i in self.auto_instances['running']):
-						self.auto_instances['running'].append(inst)
-					# Case: Ending auto instance
-					elif not state == "terminated" and not any(inst.id == i.id for i in self.auto_instances['ending']):
-						self.auto_instances['ending'].append(inst)
-					# Case: Terminated auto_instance
+				try:
+					# Case: Running parent instance
+					if inst.tags['Type'] == "Parent" and not any(inst.id == i.id for i in self.parent_instances):
+						if not inst.update() == "terminated":
+							self.parent_instances.append(inst)
+					# Case: Auto instance
+					elif inst.tags['Type'] == "Child":
+						state = inst.update()
+						# Case: Starting auto instance
+						if state == "pending" and not any(inst.id == i.id for i in self.auto_instances['starting']):
+							self.auto_instances['starting'].append(inst)
+						# Case: Running auto instance
+						elif state == "running" and not any(inst.id == i.id for i in self.auto_instances['running']):
+							self.auto_instances['running'].append(inst)
+						# Case: Ending auto instance
+						elif state == "shutting-down" and not any(inst.id == i.id for i in self.auto_instances['ending']):
+							self.auto_instances['ending'].append(inst)
+						# Case: Terminated or stopped auto_instance
+						else:
+							pass
 					else:
-						# state == terminated must be True so do not track this instance
+						# The instance is not something that should be auto-scaled (like a web server)
 						pass
-				else:
-					# The instance is not something that should be auto-scaled (like a web server)
-					pass
+				except KeyError:
+					# The instance likely hasn't had tags assigned yet
+					continue
 
 # This is where everything happens. It basically calls methods in the Controller class
 '''
@@ -271,10 +275,10 @@ def monitor(controller):
 				# possible that the script couldn't connect to the instance.
 				print "Strange InstanceState for %s" % inst
 
-		# Check on base instances
-		if controller.verbose and controller.base_instances:
-			print "monitor(): Checking base instances"
-		for inst in controller.base_instances:
+		# Check on parent instances
+		if controller.verbose and controller.parent_instances:
+			print "monitor(): Checking parent instances"
+		for inst in controller.parent_instances:
 			# Connect to instance
 			conn = controller.connect_to_inst(inst)
 			if conn:
@@ -284,8 +288,6 @@ def monitor(controller):
 				# Get the instance's response
 				# TODO: Add check for 'OK' from Listener
 				data = conn.recv(2048).split()
-
-				print data
 
 				if data[0] == "1":
 					CPU = float(data[1])
@@ -312,7 +314,7 @@ def monitor(controller):
 						if controller.verbose:
 							print "Added worker to help %s" % inst
 					# Conditions for killing an existing instance
-					elif False:
+					elif CPU < 5 and controller.get_children(inst):
 						controller.remove_worker(inst)
 						if controller.verbose:
 							print "Killing worker for %s" % inst
@@ -328,7 +330,7 @@ def monitor(controller):
 		# Check on running auto instances
 		'''
 		At this point, I don't have a good reason to check on the auto instance.
-		Could create worker groups (i.e. a base and its auto instances) and track
+		Could create worker groups (i.e. a parent and its auto instances) and track
 		average status across the group to determine whether more workers are
 		needed. Probably won't be able to do this effectively until testing with
 		the actual workers.
@@ -364,7 +366,9 @@ def monitor(controller):
 			# Add a new attribute to the AWS Instance object inst to record the approximate time 
 			# at which the instance was told to start shutting down. This attribute should have
 			# been added when the instance was first added to the 'ending' list.
-			if not inst.stop_time:
+			try:
+				inst.stop_time
+			except AttributeError:
 				inst.stop_time = time.time()
 
 			# Get instance status
@@ -379,7 +383,7 @@ def monitor(controller):
 
 				# If longer than 5 hours, force termination
 				# TODO: Refine condition for force termination
-				if time_difference_minutes > 5 * 60:
+				if time_difference_minutes > 2:
 					controller.force_terminate(inst)
 					controller.auto_instances['ending'].remove(inst)
 
