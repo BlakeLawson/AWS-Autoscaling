@@ -41,7 +41,7 @@ class Listener:
 
 		'process1' : 'echo hello world',
 		'process2' : 'ls -a /',
-		'process3' : 'touch /home/ubuntu/test_file.txt',
+		'process3' : 'touch ~/test_file.txt',
 	}
 
 	def __init__(self, address=socket.gethostname(), port=9989, verbose=False):
@@ -78,15 +78,14 @@ class Listener:
 	#       outside of the Listener class -- similar to the monitor 
 	#       function in controller.py
 	def listen(self):
-		if self.verbose:
-			print "Listening to %s on port %s." % self.socket.getsockname()
-
 		# Main loop
 		while True:
 			# Wait for a connection
+			if self.verbose:
+				print "Listening to %s on port %s." % self.socket.getsockname()
 			conn, addr = self.socket.accept()
 			if self.verbose:
-				print "Recieved data from %s." % str(addr)
+				print "Recieved connection from %s." % str(addr)
 
 			# Recieve up to 2048 bytes of data (2048 chosen arbitrarily)
 			data = conn.recv(2048).split()
@@ -119,8 +118,10 @@ class Listener:
 				elif command == 'run':
 					# Run the given command/commands
 					reply = self.CONFIRMATION
-					for i in range(2, len(data) - 1):
+					for i in range(2, len(data)):
 						try:
+							if self.verbose:
+								print "Executing command: %s" % self.TERMINAL_COMMANDS[ data[i] ]
 							os.system(self.TERMINAL_COMMANDS[ data[i] ])
 						except:
 							reply = self.REJECTION
@@ -136,6 +137,8 @@ class Listener:
 					break
 
 				else:
+					if self.verbose:
+						print "Invalid command: %s" % command
 					# Invalid command
 					conn.sendall(self.REJECTION)
 					conn.close()

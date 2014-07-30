@@ -208,7 +208,7 @@ class Controller:
 			# TODO: I'm not actually sure about what should be done in this case. For now I'm going
 			# to do nothing, but in the future it might make sense to terminate the instance because
 			# it won't be possible to determine which tasks to run.
-			return None
+			return False
 		
 		inst.add_tags(tag)
 
@@ -226,12 +226,13 @@ class Controller:
 			if self.confirm_receipt(data):
 				if self.verbose:
 					print "Message recieved from %s: %s" % (inst.id, data)
-				return True
 			else:
 				if self.verbose:
 					print "start_up(): Something went wrong in message to %s" % inst.id
+				return False
 
 			conn.close()
+			return True
 		else:
 			# Could not connect to instance
 			return False
@@ -395,7 +396,8 @@ def monitor(controller):
 				conn.close()
 			else:
 				# Could not connect to instance
-				continue
+				if controller.verbose:
+					print "Could not connect to instance %s" % inst.id
 
 		# Check on instances that are shutting down
 		if controller.verbose and controller.auto_instances['ending']:
