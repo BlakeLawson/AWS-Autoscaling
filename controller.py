@@ -108,7 +108,7 @@ class Controller:
 	# 		authentication, invalid command, something broke while executing a 
 	# 		valid command, etc.)
 	def confirm_receipt(self, data):
-		if data[0] == '1':
+		if data[0] == '0':
 			return True
 		else:
 			return False

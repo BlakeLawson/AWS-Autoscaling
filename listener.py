@@ -21,10 +21,10 @@ import urllib2
 # listener object used to manage connections
 class Listener:
 	# Confirmation code to send in response to valid messages
-	CONFIRMATION = '1'
+	CONFIRMATION = '0'
 	# Code to send in response to messages with valid authentication but
 	# invalid message
-	REJECTION = '0'
+	REJECTION = '1'
 
 	# Dictionary of terminal commands corresponding to messages sent from controller.py
 	TERMINAL_COMMANDS = {
