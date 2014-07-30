@@ -14,7 +14,7 @@ import boto.ec2
 import logging
 import psutil
 import socket
-import subprocess
+import subprocess32
 import sys
 import urllib2
 
@@ -122,7 +122,7 @@ class Listener:
 						try:
 							if self.verbose:
 								print "Executing command: %s" % self.TERMINAL_COMMANDS[ data[i] ]
-							subprocess.check_call(self.TERMINAL_COMMANDS[ data[i] ].split())
+							subprocess32.check_call(self.TERMINAL_COMMANDS[ data[i] ].split())
 						except:
 							reply = self.REJECTION
 						

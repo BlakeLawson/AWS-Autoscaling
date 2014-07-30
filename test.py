@@ -5,6 +5,7 @@ import argparse
 import boto
 import boto.ec2
 import socket
+import subprocess32
 import sys
 import time
 
@@ -101,6 +102,10 @@ def health_check():
 
 	print "Recieved message: %s" % str(data)
 
+# Test running terminal commands
+def term_command(command):
+	print subprocess32.check_output(command.split())
+
 # Manage command line input
 def main(argv):
 	# # Set up parser
@@ -133,6 +138,9 @@ def main(argv):
 
 		elif argv[0] == "status":
 			health_check()
+
+		elif argv[0] == "run":
+			term_command(argv[1])
 
 	else:
 		print "Invalid arguments."
