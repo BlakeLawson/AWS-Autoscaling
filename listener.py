@@ -7,14 +7,14 @@
 ' 
 ' ctr+f for "TODO"
 '
-' Dependencies: boto, psutil
+' Dependencies: boto, psutil, subprocess32
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 import argparse
 import boto.ec2
 import logging
-import os
 import psutil
 import socket
+import subprocess
 import sys
 import urllib2
 
@@ -41,7 +41,7 @@ class Listener:
 
 		'process1' : 'echo hello world',
 		'process2' : 'ls -a /',
-		'process3' : 'touch ~/test_file.txt',
+		'process3' : 'touch /home/ubuntu/test_file.txt',
 	}
 
 	def __init__(self, address=socket.gethostname(), port=9989, verbose=False):
@@ -122,7 +122,7 @@ class Listener:
 						try:
 							if self.verbose:
 								print "Executing command: %s" % self.TERMINAL_COMMANDS[ data[i] ]
-							os.system(self.TERMINAL_COMMANDS[ data[i] ])
+							subprocess.check_call(self.TERMINAL_COMMANDS[ data[i] ].split())
 						except:
 							reply = self.REJECTION
 						

@@ -51,7 +51,7 @@ class Controller:
 	# security group to allow TCP access on the new port.
 	SOCKET_PORT = 9989
 
-	def __init__(self, verbose=False, ami="ami-4e19d326", instance_type="t2.micro", key_name="blake", security_groups=["launch-wizard-1"]):
+	def __init__(self, verbose=False, ami="ami-100cd978", instance_type="t2.micro", key_name="blake", security_groups=["launch-wizard-1"]):
 		'''
 		Initialize member variables
 		'''
@@ -221,7 +221,6 @@ class Controller:
 			message = self.MESSAGE['run'] + tasks
 			conn.sendall(message)
 			# For now, the auto instance is just going to return the message it recieves
-			# TODO: Confirm message recipt here
 			data = conn.recv(2048)
 			if self.confirm_receipt(data):
 				if self.verbose:
@@ -434,7 +433,7 @@ def monitor(controller):
 def main(argv):
 	# Set up parser
 	parser = argparse.ArgumentParser()
-	parser.add_argument('-i', '--ami', help='AWS AMI to use when making new workers', default='ami-4e19d326')
+	parser.add_argument('-i', '--ami', help='AWS AMI to use when making new workers', default='ami-100cd978')
 	parser.add_argument('-k', '--key', help='name of the AWS key pair to use. You will need the corresponding .pem key to ssh into the new workers', default='blake')
 	parser.add_argument('-s', '--security', help='group name of the AWS security group to use for the new instances', default='launch-wizard-1')
 	parser.add_argument('-t', '--instance_type', help='The type of AWS instance to use (e.g. "t2.micro")', default='t2.micro')
