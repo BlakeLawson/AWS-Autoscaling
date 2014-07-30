@@ -41,7 +41,7 @@ class Listener:
 
 		'process1' : 'echo hello world',
 		'process2' : 'ls -a /',
-		'process3' : 'touch test_file.txt',
+		'process3' : 'touch /home/ubuntu/test_file.txt',
 	}
 
 	def __init__(self, address=socket.gethostname(), port=9989, verbose=False):
@@ -69,7 +69,7 @@ class Listener:
 				print "Connection accepted"
 			return True
 		else:
-			if self.verbose:
+			if self.verbose:54.86.77.160
 				print "Connection denied"
 			return False
 
@@ -143,91 +143,8 @@ class Listener:
 				# Message invalid. Do not respond
 				pass
 
-
-
-	########################################################################
-	###################  DELETE THIS METHOD AFTER DEMO #####################
-	########################################################################
-
-	# Print any inbound messages and take no other actions. Used
-	# for testing.
-	def print_inbound(self):
-		if self.verbose:
-			print "Listening to %s on port %s." % self.socket.getsockname()
-		
-		listen = True
-		while listen:
-			# Wait for a connection
-			conn, addr = self.socket.accept()
-			if self.verbose:
-				print "Recieved data from %s" % str(addr)
-
-			# Recieve up to 2048 bytes of data (2048 chosen arbitrarily)
-			data = conn.recv(2048)
-
-			# Print inbound message
-			print data
-			# logging.info(str(data))
-
-			if data == "end":
-				conn.close()
-				listen = False
-				if self.verbose:
-					print "Turning off listener"
-
-	########################################################################
-	########################################################################
-
-	########################################################################
-	###################  DELETE THIS METHOD AFTER DEMO #####################
-	########################################################################
-
-	# Return system information to sender
-	def reply_to_inbound(self):
-		if self.verbose:
-			print "Listening to %s on port %s." % self.socket.getsockname()
-
-		listen = True
-		while listen:
-			# Wait for a connection
-			conn, addr = self.socket.accept()
-			if self.verbose:
-				print "Recieved data from %s" % str(addr)
-
-			# Recieve up to 2048 bytes of data (2048 chosen arbitrarily)
-			data = conn.recv(2048).split()
-
-			# Take action if valid message
-			if self.authenticate(data[0]):		
-				if data[1] == "end":
-					conn.close()
-					listen = False
-					if self.verbose:
-						print "Turning off listener"
-					break
-				elif data[1] == "status":
-					# Get information about current system
-					CPU, disk, mem = self.sys_check()
-					if self.verbose:
-						print "Getting system status. CPU: %s Disk Usage: %s Memory Usage: %s" % (str(CPU) + "%", str(disk) + "%", str(mem) + "%")
-
-					# Send reply
-					reply = str(CPU) + " " + str(disk) + " " + str(mem)
-					conn.sendall(reply)
-					if self.verbose:
-						print "Sent response"
-
-					conn.close()
-					if self.verbose:
-						print "Closed connection"
-				else:
-					print "Recieved message: " + data
-
-	########################################################################
-	########################################################################
-
 	# Function to turn off this AWS Instance
-	# TODO: Add a few lines to kill existing Celery instances and other tasks
+	# TODO: Add a few lines to kill Celery and other tasks that may be running
 	def shut_down(self):
 		# Look up this server's public ip address
 		ip = urllib2.urlopen('http://ip.42.pl/raw').read()
@@ -245,7 +162,7 @@ class Listener:
 		try:
 			conn.terminate_instances(instance_ids=[inst.id])
 		except:
-			print "Could not find this instance on AWS."
+			print "Could kill this instance."
 
 	# Check system CPU, disk usage, and memory usage
 	def sys_check(self):
@@ -276,37 +193,6 @@ def main(argv):
 		l = Listener()
 
 	l.listen()
-
-'''
-########################################################################
-###################  DELETE THIS METHOD AFTER DEMO #####################
-########################################################################
-
-# Old main
-def main(argv):
-	if argv:
-		if len(argv) > 1:
-			try:
-				# Use verbose for now
-				l = Listener(address=argv[1], port=int(argv[2]), verbose=True)
-			except:
-				print "Invalid arguments. Use format 'python listener.py mode address port'"
-				return None
-		else:
-			# Verbose for now
-			l = Listener(address="localhost", verbose=True)
-			print "No address or port supplied. Using default settings: address=%s port=%s" % l.socket.getsockname()
-
-		if argv[0] == "passive":
-			l.print_inbound()
-		elif argv[0] == "active":
-			l.reply_to_inbound()
-	else:
-		print "Invalid arguments."
-
-############################################################################
-############################################################################
-'''
 
 if __name__=="__main__":
 	main(sys.argv[1:])

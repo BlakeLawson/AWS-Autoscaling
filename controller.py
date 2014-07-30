@@ -28,6 +28,10 @@ class Controller:
 	# instances.
 	parent_instances = [] 
 
+	# Limit to the number of auto instances
+	# TODO: Don't hardcode this. Let the client set it in the constructor
+	INST_LIMIT = 5
+
 	# Authentication key that the Listener looks for
 	LISTENER_PASSWORD = 'real'
 
@@ -46,7 +50,7 @@ class Controller:
 	# Port to use when connecting to workers. MAKE SURE IT IS THE SAME
 	# AS THE PORT BEING USED IN Listener CLASS IN listener.py!!!! Also,
 	# if you change this port, make sure that you change the AWS
-	# security group to allow TCP access on the new portself.
+	# security group to allow TCP access on the new port.
 	SOCKET_PORT = 9989
 
 	def __init__(self, verbose=False, ami="ami-4e19d326", instance_type="t2.micro", key_name="blake", security_groups=["launch-wizard-1"]):
@@ -70,22 +74,44 @@ class Controller:
 
 	# Add a new worker to assist a given instance
 	def add_worker(self, inst):
-		# Initialize new server
-		reservation = self.aws_conn.run_instances(
-			image_id=self.ami,
-			instance_type=self.instance_type,
-			key_name=self.key_name,
-			security_groups=self.security_groups
-		)
+		# Check that there are fewer auto instances than the limit
+		num_auto_inst = len(self.auto_instances['starting']) + len(self.auto_instances['running']) + len(self.auto_instances['ending'])
+		if num_auto_inst < self.INST_LIMIT:
+			# Initialize new server
+			reservation = self.aws_conn.run_instances(
+				image_id=self.ami,
+				instance_type=self.instance_type,
+				key_name=self.key_name,
+				security_groups=self.security_groups
+			)
 
-		# Add the new instance to the list of known instances
-		for new_inst in reservation.instances:
-			# Adding the 'parent' attribute to AWS Instance object in order to 
-			# make a tag containing parent information later on. IT IS NOT 
-			# SAFE TO ASSUME THAT ALL AUTO INSTANCES HAVE THIS ATTRIBUTE, so 
-			# code accordingly.
-			new_inst.parent = inst
-			self.auto_instances['starting'].append(new_inst)
+			# Add the new instance to the list of known instances
+			for new_inst in reservation.instances:
+				# Adding the 'parent' attribute to AWS Instance object in order to 
+				# make a tag containing parent information later on. IT IS NOT 
+				# SAFE TO ASSUME THAT ALL AUTO INSTANCES HAVE THIS ATTRIBUTE, so 
+				# code accordingly.
+				new_inst.parent = inst
+				self.auto_instances['starting'].append(new_inst)
+
+			if self.verbose:
+				print "Added worker to help %s" % inst.id
+		else:
+			# There are too many auto_instances already
+			if self.verbose:
+				print "Could not add worker to help %s. Too many workers already." % inst.id
+
+	# Parse data returned by listener to see if it responded with an 'ok' status
+	# TODO: This method was created with the expectation that the listener will
+	#		eventually send more complicated responses that include more details
+	#		about why something went wrong with the message (e.g. invalid 
+	# 		authentication, invalid command, something broke while executing a 
+	# 		valid command, etc.)
+	def confirm_receipt(self, data):
+		if data[0] == '1':
+			return True
+		else:
+			return False
 
 	# Connect to a given AWS EC2 instance. Returns a socket object
 	def connect_to_inst(self, inst):
@@ -107,7 +133,7 @@ class Controller:
 	def force_terminate(self, inst):
 		# Ensure given instance exists
 		instance_found = False
-		reservations = aws_conn.get_all_reservations()
+		reservations = self.aws_conn.get_all_reservations()
 		for res in reservations:
 			for instance in res.instances:
 				if instance.id == inst.id:
@@ -116,7 +142,9 @@ class Controller:
 
 		# Terminate instance
 		if instance_found:
-			aws_conn.terminate_instances(instance_ids=[inst.id])
+			self.aws_conn.terminate_instances(instance_ids=[inst.id])
+			if self.verbose:
+				print "Forcing termination of %s" % inst.id
 
 	# Return list of children that have been created to help the given instance
 	def get_children(self, inst):
@@ -145,7 +173,13 @@ class Controller:
 			conn = self.connect_to_inst(worker)
 			if conn:
 				conn.sendall(self.MESSAGE['kill'])
-				# TODO: Add line here to confirm that worker got message
+				response = conn.recv(2048).split()
+				if self.confirm_receipt(response):
+					if self.verbose:
+						print "Killing worker %s for %s" % (worker.id, parent_inst.id)
+				else:
+					if self.verbose:
+						print "Something went wrong in message to %s" % worker.id
 				conn.close()
 			else:
 				# Could not connect to worker
@@ -160,7 +194,8 @@ class Controller:
 			worker.stop_time = time.time()
 		else:
 			# There must not be any running children to this parent_inst
-			return None
+			if self.verbose:
+				print "Could not kill worker for %s. No workers exist." % parent_inst.id
 
 	# Run scripts and perform other tasks with an auto instance that has just started running
 	def start_up(self, inst):
@@ -190,14 +225,22 @@ class Controller:
 			# For now, the auto instance is just going to return the message it recieves
 			# TODO: Confirm message recipt here
 			data = conn.recv(2048)
-			print "Message recieved from %s: %s" % (inst.id, data)
+			if self.confirm_receipt(data):
+				if self.verbose:
+					print "Message recieved from %s: %s" % (inst.id, data)
+				return True
+			else:
+				if self.verbose:
+					print "start_up(): Something went wrong in message to %s" % inst.id
+
 			conn.close()
-			return True
 		else:
 			# Could not connect to instance
 			return False
 
 	# Update list of known instances
+	# TODO: The AWS Instance object also has a method called update(). Consider
+	# 		refactoring to avoid confusion
 	def update(self):
 		reserves = self.aws_conn.get_all_reservations()
 		for res in reserves:
@@ -289,7 +332,7 @@ def monitor(controller):
 				# TODO: Add check for 'OK' from Listener
 				data = conn.recv(2048).split()
 
-				if data[0] == "1":
+				if controller.confirm_receipt(data):
 					CPU = float(data[1])
 					disk = float(data[2])
 					mem = float(data[3])
@@ -309,18 +352,15 @@ def monitor(controller):
 					keeps a tally of number of times a condition is > 85%.
 					'''
 					# Condition for making a new instance
-					if False:  
+					if CPU > 90:  
 						controller.add_worker(inst)
-						if controller.verbose:
-							print "Added worker to help %s" % inst
 					# Conditions for killing an existing instance
 					elif CPU < 5 and controller.get_children(inst):
 						controller.remove_worker(inst)
-						if controller.verbose:
-							print "Killing worker for %s" % inst
 				else:
 					# Something went wrong with message
-					pass
+					if controller.verbose:
+						print "Something went wrong with message to %s" % inst.id
 
 				conn.close()
 			else:
@@ -345,15 +385,15 @@ def monitor(controller):
 				conn.sendall(message)
 
 				# Get the instance's response
-				# TODO: Add check for 'OK' from Listener
 				data = conn.recv(2048).split()
-				if data[0] == "1":
+				if controller.confirm_receipt(data):
 					CPU = float(data[1])
 					disk = float(data[2])
 					mem = float(data[3])
 				else:
 					# Something went wrong with the message
-					pass
+					if controller.verbose:
+						print "Something went wrong with message to %s" % inst.id
 				conn.close()
 			else:
 				# Could not connect to instance
@@ -366,6 +406,9 @@ def monitor(controller):
 			# Add a new attribute to the AWS Instance object inst to record the approximate time 
 			# at which the instance was told to start shutting down. This attribute should have
 			# been added when the instance was first added to the 'ending' list.
+			if controller.verbose:
+				print "Checking on %s" % inst.id
+
 			try:
 				inst.stop_time
 			except AttributeError:
@@ -383,7 +426,7 @@ def monitor(controller):
 
 				# If longer than 5 hours, force termination
 				# TODO: Refine condition for force termination
-				if time_difference_minutes > 2:
+				if time_difference_minutes > 1:
 					controller.force_terminate(inst)
 					controller.auto_instances['ending'].remove(inst)
 
