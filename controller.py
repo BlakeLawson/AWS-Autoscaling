@@ -15,9 +15,7 @@ import time
 
 '''
 This class is meant to handle all interactions between the monitoring
-server (the server running this script) and all other AWS workers. In
-retrospect, it probably should have been divided into several, smaller
-classes and methods
+server (the server running this script) and all other AWS workers.
 '''
 class Controller:
 	# Dictionary containing lists of aws instance objects for all worker made by
@@ -424,9 +422,9 @@ def monitor(controller):
 				time_difference_seconds = current_time - inst.stop_time
 				time_difference_minutes = time_difference_seconds / 60
 
-				# If longer than 5 hours, force termination
+				# If longer than two minutes, force termination
 				# TODO: Refine condition for force termination
-				if time_difference_minutes > 1:
+				if time_difference_minutes > 2:
 					controller.force_terminate(inst)
 					controller.auto_instances['ending'].remove(inst)
 

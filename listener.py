@@ -69,7 +69,7 @@ class Listener:
 				print "Connection accepted"
 			return True
 		else:
-			if self.verbose:54.86.77.160
+			if self.verbose:
 				print "Connection denied"
 			return False
 
