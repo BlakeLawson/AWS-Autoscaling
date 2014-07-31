@@ -27,18 +27,17 @@ class Listener:
 	REJECTION = '1'
 
 	# Dictionary of terminal commands corresponding to messages sent from controller.py
+	'''
+	Currently, these commands exist for to test interactions between the listener
+	and the controller. Right now, I am thinking that the additional arguments for
+	the 'run' command (i.e. the key values for this dictionary) should correspond to
+	values listed in the 'tasks' tag on AWS (every 'parent' instance should have one
+	of these.
+
+	TODO: Whenever it is time to start using this script in the production environment, 
+	      these commands will need to be updated.
+	'''
 	TERMINAL_COMMANDS = {
-		'''
-		Currently, these commands exist for to test interactions between the listener
-		and the controller. Right now, I am thinking that the additional arguments for
-		the 'run' command (i.e. the key values for this dictionary) should correspond to
-		values listed in the 'tasks' tag on AWS (every 'parent' instance should have one
-		of these.
-
-		TODO: Whenever it is time to start using this script in the production environment, 
-		      these commands will need to be updated.
-		'''
-
 		'process1' : 'df -h',
 		'process2' : 'ls -a /',
 		'process3' : 'touch /home/ubuntu/test_file.txt',
