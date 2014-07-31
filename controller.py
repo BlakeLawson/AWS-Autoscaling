@@ -116,7 +116,7 @@ class Controller:
 		address = inst.public_dns_name
 		port = self.SOCKET_PORT
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.settimeout(120.0)
+		s.settimeout(10.0)
 		try:
 			if self.verbose:
 				print "Connecting to %s" % inst

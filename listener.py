@@ -39,7 +39,7 @@ class Listener:
 		      these commands will need to be updated.
 		'''
 
-		'process1' : 'echo hello world',
+		'process1' : 'df -h',
 		'process2' : 'ls -a /',
 		'process3' : 'touch /home/ubuntu/test_file.txt',
 	}
