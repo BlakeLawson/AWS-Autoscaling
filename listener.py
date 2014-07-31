@@ -152,7 +152,10 @@ class Listener:
 				pass
 
 	# Function to turn off this AWS Instance
-	# TODO: Add a few lines to kill Celery and other tasks that may be running
+	# TODO: Add a few lines to kill Celery and other tasks that may be running.
+	#       Also, the return values for this method were added to help with 
+	#       debugging, but they aren't particularly useful. Consider removing
+	# 		them.
 	def shut_down(self):
 		# Look up this server's public ip address
 		ip = urllib2.urlopen('http://ip.42.pl/raw').read()
