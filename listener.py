@@ -135,9 +135,11 @@ class Listener:
 					result = self.shut_down()
 					if result == 0:
 						conn.sendall(self.CONFIRMATION)
+						conn.close()
+						break
 					else:
 						conn.sendall(self.REJECTION + " " + result)
-					conn.close()
+						conn.close()
 
 				else:
 					if self.verbose:
@@ -158,6 +160,7 @@ class Listener:
 		# Connect to this AWS instance
 		conn = boto.ec2.connect_to_region("us-east-1")
 		reserves = conn.get_all_reservations()
+		inst = None
 		for res in reserves:
 			for instance in res.instances:
 				if ip == instance.ip_address:
@@ -165,11 +168,14 @@ class Listener:
 					break
 
 		# Kill this instance
-		try:
-			conn.terminate_instances(instance_ids=[inst.id])
-			return 0
-		except:
-			return str(sys.exc_info()[0])
+		if inst:
+			try:
+				conn.terminate_instances(instance_ids=[inst.id])
+				return 0
+			except:
+				return str(sys.exc_info()[0])
+		else:
+			return "Could not find this instance"
 
 	# Check system CPU, disk usage, and memory usage
 	def sys_check(self):
