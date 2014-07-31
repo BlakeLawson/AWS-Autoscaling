@@ -132,7 +132,7 @@ class Listener:
 
 				elif command == 'end':
 					# Terminate this instance
-					result = self.shut_down():
+					result = self.shut_down()
 					if result == 0:
 						conn.sendall(self.CONFIRMATION)
 					else:
