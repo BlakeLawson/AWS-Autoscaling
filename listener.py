@@ -125,7 +125,7 @@ class Listener:
 								print "Executing command: %s" % self.TERMINAL_COMMANDS[ data[i] ]
 							subprocess32.check_call(self.TERMINAL_COMMANDS[ data[i] ].split())
 						except:
-							error = error + " " + sys.exc_info()[0]
+							error = error + " " + str(sys.exc_info()[0])
 							reply = self.REJECTION
 						
 					conn.sendall(reply + error)
