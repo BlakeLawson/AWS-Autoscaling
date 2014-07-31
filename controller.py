@@ -51,7 +51,7 @@ class Controller:
 	# security group to allow TCP access on the new port.
 	SOCKET_PORT = 9989
 
-	def __init__(self, verbose=False, ami="ami-468f5b2e", instance_type="t2.micro", key_name="blake", security_groups=["launch-wizard-1"]):
+	def __init__(self, verbose=False, ami="ami-a6885cce", instance_type="t2.micro", key_name="blake", security_groups=["launch-wizard-1"]):
 		'''
 		Initialize member variables
 		'''
@@ -433,7 +433,7 @@ def monitor(controller):
 def main(argv):
 	# Set up parser
 	parser = argparse.ArgumentParser()
-	parser.add_argument('-i', '--ami', help='AWS AMI to use when making new workers', default='ami-468f5b2e')
+	parser.add_argument('-i', '--ami', help='AWS AMI to use when making new workers', default='ami-a6885cce')
 	parser.add_argument('-k', '--key', help='name of the AWS key pair to use. You will need the corresponding .pem key to ssh into the new workers', default='blake')
 	parser.add_argument('-s', '--security', help='group name of the AWS security group to use for the new instances', default='launch-wizard-1')
 	parser.add_argument('-t', '--instance_type', help='The type of AWS instance to use (e.g. "t2.micro")', default='t2.micro')
