@@ -118,15 +118,17 @@ class Listener:
 				elif command == 'run':
 					# Run the given command/commands
 					reply = self.CONFIRMATION
+					error = ""
 					for i in range(2, len(data)):
 						try:
 							if self.verbose:
 								print "Executing command: %s" % self.TERMINAL_COMMANDS[ data[i] ]
 							subprocess32.check_call(self.TERMINAL_COMMANDS[ data[i] ].split())
 						except:
+							error = error + " " + sys.exc_info[0]
 							reply = self.REJECTION
 						
-					conn.sendall(reply)
+					conn.sendall(reply + error)
 					conn.close()
 
 				elif command == 'end':

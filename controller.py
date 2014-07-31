@@ -177,7 +177,7 @@ class Controller:
 						print "Killing worker %s for %s" % (worker.id, parent_inst.id)
 				else:
 					if self.verbose:
-						print "Something went wrong in message to %s" % worker.id
+						print "Problem in message to %s: %s" % (worker.id, response)
 				conn.close()
 			else:
 				# Could not connect to worker
