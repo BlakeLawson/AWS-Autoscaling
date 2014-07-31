@@ -132,10 +132,12 @@ class Listener:
 
 				elif command == 'end':
 					# Terminate this instance
-					conn.sendall(self.CONFIRMATION)
+					result = self.shut_down():
+					if result == 0:
+						conn.sendall(self.CONFIRMATION)
+					else:
+						conn.sendall(self.REJECTION + " " + result)
 					conn.close()
-					self.shut_down()
-					break
 
 				else:
 					if self.verbose:
@@ -165,8 +167,9 @@ class Listener:
 		# Kill this instance
 		try:
 			conn.terminate_instances(instance_ids=[inst.id])
+			return 0
 		except:
-			print "Could kill this instance."
+			return str(sys.exc_info()[0])
 
 	# Check system CPU, disk usage, and memory usage
 	def sys_check(self):
