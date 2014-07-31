@@ -161,7 +161,10 @@ class Listener:
 		ip = urllib2.urlopen('http://ip.42.pl/raw').read()
 
 		# Connect to this AWS instance
-		conn = boto.ec2.connect_to_region("us-east-1")
+		try:
+			conn = boto.ec2.connect_to_region("us-east-1")
+		except:
+			return str(sys.exc_info()[0])
 		reserves = conn.get_all_reservations()
 		inst = None
 		for res in reserves:
